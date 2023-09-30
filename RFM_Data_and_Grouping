@@ -1,0 +1,54 @@
+# The following code generates simulated summary data for b2b and b2c ordering channels.
+# Fake business names taken from: https://looka.com/business-name-generator/manufacturing.
+# Random seeds were chosen arbitrarily and included for reproducibility.
+
+
+b2bvect = c("Engaged Designs", "Spatial Industries", "Induchange Inc.",
+            "Lakespur Industries", "Distributed Goods", "Hammer Rule Industrial Systems",
+            "Tradufactory", "Presto Prefab", "Forge On Industries", "Steelfire Manufacturing",
+            "Big Arena Industries", "Agrimade Manufacturing", "Modernical Mechanics",
+            "Zeus Produce Industries", "Forge It Manufacturing", "Fireball Fabrication",
+            "Rollcaster Manufacturing", "Golden Triad Technology", "Royal Rumble",
+            "Engaged Fabric", "Cellus Manufacturing Co")
+
+agencyvect = rep(c("Type A", "Type B", "Type C"), each=7)
+
+b2cvect = seq(10000, 10100, by=1)
+
+salesdata = data.frame(matrix(ncol=6, nrow=122))
+colnames(salesdata) = c("Name", "Channel", "Agency Type", "Recency", "Frequency", "Monetary")
+
+salesdata[, "Name"] = c(b2bvect, b2cvect)
+salesdata[, "Channel"] = rep(c("B2B", "B2C"), c(21, 101))
+salesdata[, "Agency Type"] = c(agencyvect, rep("Customner", 101))
+
+set.seed(98)
+salesdata[, "Recency"] = sample(1:90, 122, replace=TRUE)
+salesdata[, "Frequency"] = c(abs(ceiling(rnorm(21, mean=30, sd=15))), rpois(101, 3))
+salesdata[, "Monetary"] = abs(ceiling(rnorm(122, mean=80, sd=15)))*(c(rpois(21, 10), rpois(101, 2))+1)
+
+b2brecbin = cut(salesdata[1:21, "Recency"],
+                unique(as.numeric(quantile(salesdata[1:21, "Recency"], seq(0, 1, .2), names=TRUE))),
+                include.lowest=TRUE, labels=5:1)
+b2bfreqbin = cut(salesdata[1:21, "Frequency"],
+                 unique(as.numeric(quantile(salesdata[1:21, "Frequency"], seq(0, 1, .2), names=TRUE))),
+                 include.lowest=TRUE, labels=1:5)
+b2bmonbin = cut(salesdata[1:21, "Monetary"],
+                unique(as.numeric(quantile(salesdata[1:21, "Monetary"], seq(0, 1, .2), names=TRUE))),
+                include.lowest=TRUE, labels=1:5)
+
+b2crecbin = cut(salesdata[22:122, "Recency"],
+                unique(as.numeric(quantile(salesdata[22:122, "Recency"], seq(0, 1, .2), names=TRUE))),
+                include.lowest=TRUE, labels=5:1)
+b2cfreqbin = cut(salesdata[22:122, "Frequency"],
+                 unique(as.numeric(quantile(salesdata[22:122, "Frequency"], seq(0, 1, .2), names=TRUE))),
+                 include.lowest=TRUE, labels=1:4)
+b2cmonbin = cut(salesdata[22:122, "Monetary"],
+                unique(as.numeric(quantile(salesdata[22:122, "Monetary"], seq(0, 1, .2), names=TRUE))),
+                include.lowest=TRUE, labels=1:5)
+
+salesdata[, "RecencyBin"] = c(b2brecbin, b2crecbin)
+salesdata[, "FrequencyBin"] = c(b2bfreqbin, b2cfreqbin)
+salesdata[, "MonetaryBin"] = c(b2bmonbin, b2cmonbin)
+
+write.csv(salesdata, "SalesData.csv")
