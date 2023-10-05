@@ -1,0 +1,96 @@
+# This code generates call center call data and employee data.
+# Random seed chosen arbitrarily to allow data frame to be reproduced.
+# There are 3 skill levels with mutually exclusive employee lists and call types.
+# The code randomly assigns call types and appropriate employees.
+
+# Employee and broad call data.
+# Includes: Date, Call Type, and Employee ID.
+set.seed(99)
+rawdays = sample(seq(as.Date('2023-01-01'), as.Date('2023-10-01'), by="day"),
+                 24654, replace=TRUE)
+
+calltypes = c("New Customer", "Login", "Account Setup", "Billing Question", "Account Update",
+              "Returning Customer", "Bill Pay", "Technical Problem", "Discounts",
+              "Agent Help Line", "Agent Billing", "Comission", "Technician Dispatch")
+calltypeprobs = c(.127, .107, .107, .027, .107, .057, .107, .077, .087, .137, .007, .027, .026)
+rawtypes = sample(calltypes, 24654, prob=calltypeprobs, replace=TRUE)
+
+empnames = c("Addilyn Gibson", "Tyler Bond", "Alena Nash", "Chandler Rowe",
+             "Matilda Gomez","Isaiah Tang", "Belle Daugherty", "Turner Aguilar", 
+             "Josie Bullock", "Ben Johnson", "Emma Thornton", "Malik Dillon",
+             "Laurel Soto", "Barrett Berg", "Emmalyn Griffin", "Ayden Blair",
+             "Frances Meyer", "Tristan Dixon", "Blakely Snow", "Houston Parker",
+             "Aubrey Harding", "Brodie Rivas", "Averie Cline", "Cullen Phan",
+             "Elsa Willis","Remington Wiley", "Lauryn Gonzales", "Brayden Park",
+             "Lia McFarland", "Dane Johnson")
+paygrade = c(rep("Grade 1", 18), rep("Grade 2", 8), rep("Grade 3", 4))
+
+employeematrix = data.frame(matrix(ncol=2, nrow=30))
+colnames(employeematrix) = c("Name", "Skill")
+employeematrix[, "Name"] = empnames
+employeematrix[, "Skill"] = paygrade
+employeematrix[, "ID"] = paste(rep("EMP", 30), rep(0, 30), 1:30, sep="")
+employeematrix[, "Region"] = rep(c("Portland", "Bend", "Eugene"), 10)
+
+callmatrix = data.frame(matrix(ncol=2, nrow=24654))
+colnames(callmatrix) = c("Date", "Type")
+callmatrix[, "Date"] = rawdays
+callmatrix[, "Type"] = rawtypes
+
+skill1vect = c("New Customer", "Login", "Account Setup", "Billing Question", "Account Update",
+              "Returning Customer", "Bill Pay")
+skill2vect = c("Technical Problem", "Discounts", "Agent Help Line", "Agent Billing")
+skill3vect = c("Comission", "Technician Dispatch")
+callmatrix[, "Skill"] = ifelse(callmatrix[, "Type"] %in% skill1vect, "Grade 1",
+                        ifelse(callmatrix[, "Type"] %in% skill2vect, "Grade 2",
+                                "Grade 3"))
+lengthgr1 = length(which(callmatrix[, "Skill"] == "Grade 1"))
+lengthgr2 = length(which(callmatrix[, "Skill"] == "Grade 2"))
+lengthgr3 = length(which(callmatrix[, "Skill"] == "Grade 3"))
+callmatrix[which(callmatrix[, "Skill"] == "Grade 1"), "EmpID"] = sample(employeematrix[which(employeematrix[, "Skill"] == "Grade 1"), "ID"], 
+                                                                        lengthgr1, replace=TRUE)
+callmatrix[which(callmatrix[, "Skill"] == "Grade 2"), "EmpID"] = sample(employeematrix[which(employeematrix[, "Skill"] == "Grade 2"), "ID"], 
+                                                                        lengthgr2, replace=TRUE)
+callmatrix[which(callmatrix[, "Skill"] == "Grade 3"), "EmpID"] = sample(employeematrix[which(employeematrix[, "Skill"] == "Grade 3"), "ID"], 
+                                                                        lengthgr3, replace=TRUE)
+
+# Call detail simulation, abandon rates, talk time, and fcr.
+callmatrix[, "Abandon"] = rbinom(n=24654, 1, .04)
+abandonsum = sum(callmatrix[, "Abandon"])
+noabandonsum = which(callmatrix[, "Abandon"] == 0)
+callmatrix[which(callmatrix[, "Abandon"] == 1), "RingTime"] = abs(rnorm(abandonsum, mean=60, sd=15))
+callmatrix[which(callmatrix[, "Abandon"] == 0), "RingTime"] = abs(rnorm(noabandonsum, mean=25, sd=5))
+callmatrix[, "SLA"] = ifelse(callmatrix[, "RingTime"]  < 30, 1, 0)
+
+callmatrix[which(callmatrix[, "Skill"] == "Grade 1"), "Talk"] = abs(rnorm(lengthgr1, mean=200, sd=30))
+callmatrix[which(callmatrix[, "Skill"] == "Grade 2"), "Talk"] = abs(rnorm(lengthgr2, mean=300, sd=15))
+callmatrix[which(callmatrix[, "Skill"] == "Grade 3"), "Talk"] = abs(rnorm(lengthgr3, mean=400, sd=50))
+
+callmatrix[which(callmatrix[, "Skill"] == "Grade 1"), "Hold"] = abs(rnorm(lengthgr1, mean=20, sd=3))
+callmatrix[which(callmatrix[, "Skill"] == "Grade 2"), "Hold"] = abs(rnorm(lengthgr2, mean=30, sd=1.5))
+callmatrix[which(callmatrix[, "Skill"] == "Grade 3"), "Hold"] = abs(rnorm(lengthgr3, mean=40, sd=5))
+
+callmatrix[which(callmatrix[, "Skill"] == "Grade 1"), "ACW"] = abs(rnorm(lengthgr1, mean=100, sd=15))
+callmatrix[which(callmatrix[, "Skill"] == "Grade 2"), "ACW"] = abs(rnorm(lengthgr2, mean=150, sd=7.5))
+callmatrix[which(callmatrix[, "Skill"] == "Grade 3"), "ACW"] = abs(rnorm(lengthgr3, mean=200, sd=25))
+
+callmatrix[, "FCR"] = rbinom(n=24654, 1, .85)
+
+# Employee Training
+coursenames = c("Growth Guardians", "Wisdom Warriors", "Balance Boosters",
+                "Mindfulness Mavericks", "Progress Pioneers", "Business Brainiacs",
+                "Profit Pioneers", "Venture Visionaries", "Startup Superstars",
+                "Commerce Crusaders")
+trainingrows = length(employeematrix[, "ID"])*length(coursenames)
+trainingmatrix = data.frame(matrix(ncol=2, nrow=trainingrows))
+colnames(trainingmatrix) = c("EmpID", "Course")
+trainingmatrix[, "EmpID"] = rep(employeematrix[, "ID"], each=length(coursenames))
+trainingmatrix[, "Course"] = rep(coursenames, times=length(employeematrix[, "ID"]))
+
+trainingmatrix[, "TooBusy"] = rbinom(trainingrows, 1, .05)
+trainingmatrix[, "Refused"] = rbinom(trainingrows, 1, .1)
+trainingmatrix[, "Complete"] = ifelse(rowSums(trainingmatrix[, c("TooBusy", "Refused")]) == 0, 1, 0)
+
+write.csv(callmatrix, "CallData.csv")
+write.csv(employeematrix, "EmployeeData.csv")
+write.csv(trainingmatrix, "TrainingData.csv")
